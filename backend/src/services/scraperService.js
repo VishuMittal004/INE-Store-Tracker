@@ -130,8 +130,8 @@ async function runScrapeJob(productId) {
             } else if (attempt < maxAttempts) {
                 // If we failed but have retries left, wait 15 seconds before trying again!
                 // This prevents us from instantly hammering the exact same page and getting permanently blocked by the anti-bot.
-                console.log(`Waiting 15 seconds before attempt ${attempt + 1}...`);
-                await new Promise(resolve => setTimeout(resolve, 15000));
+                console.log(`Waiting 30 seconds before attempt ${attempt + 1}...`);
+                await new Promise(resolve => setTimeout(resolve, 30000));
             }
             
             attempt++;
