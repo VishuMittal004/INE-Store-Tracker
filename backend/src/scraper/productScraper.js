@@ -3,6 +3,8 @@ const selectors = require('./selectors');
 async function scrapeProduct(page, url) {
     try {
         console.log(`Loading page...`);
+        // Set a desktop viewport! In headless mode on Linux, it defaults to a small size which can trigger the mock store's mobile CSS and hide the image!
+        await page.setViewportSize({ width: 1920, height: 1080 });
         await page.goto(url, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(2000); // hydrate
 
@@ -20,7 +22,16 @@ async function scrapeProduct(page, url) {
             await page.waitForTimeout(1000);
         } catch(e) {}
 
-        // 3. Hover over the price block with a large "human" wiggle to guarantee React catches it
+        // 3. Hover over the PRODUCT IMAGE (Anti-bot requirement)
+        try {
+            const image = page.locator('.product-image-container, img.w-full.h-full.object-cover');
+            if (await image.first().isVisible()) {
+                await image.first().hover();
+                await page.waitForTimeout(2000); // 2 second delay for anti-bot
+            }
+        } catch (e) {}
+
+        // 4. Hover over the price block with a large "human" wiggle to guarantee React catches it
         try {
             const box = await page.locator('.price-block').boundingBox();
             if (box) {
