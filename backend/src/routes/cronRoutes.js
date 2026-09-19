@@ -1,0 +1,39 @@
+const express = require('express');
+const router = express.Router();
+const { createClient } = require('@supabase/supabase-js');
+const { runScrapeJob } = require('../services/scraperService');
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Middleware to authenticate cron requests using a secret header
+function authenticateCron(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid cron secret' });
+    }
+    next();
+}
+
+router.post('/trigger', authenticateCron, async (req, res) => {
+    try {
+        // Find products that need scraping based on their frequency
+        // For simplicity right now, let's just trigger scraping for all tracked products
+        const { data: products, error } = await supabase.from('tracked_products').select('id');
+        
+        if (error) throw error;
+        
+        // Start jobs asynchronously in the background so the HTTP request completes quickly
+        // (Free tier services require quick responses)
+        products.forEach(p => {
+            runScrapeJob(p.id).catch(console.error);
+        });
+        
+        res.json({ message: `Triggered scrape jobs for ${products.length} products.` });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+module.exports = router;
