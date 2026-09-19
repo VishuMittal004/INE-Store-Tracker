@@ -24,11 +24,17 @@ router.post('/trigger', authenticateCron, async (req, res) => {
         
         if (error) throw error;
         
-        // Start jobs asynchronously in the background so the HTTP request completes quickly
-        // (Free tier services require quick responses)
-        products.forEach(p => {
-            runScrapeJob(p.id).catch(console.error);
-        });
+        // Start jobs sequentially in the background so we don't run out of RAM on the free tier!
+        // (Free tier services require quick HTTP responses, so we don't await this block)
+        (async () => {
+            for (const p of products) {
+                try {
+                    await runScrapeJob(p.id);
+                } catch (err) {
+                    console.error("Error scraping product:", err);
+                }
+            }
+        })();
         
         res.json({ message: `Triggered scrape jobs for ${products.length} products.` });
     } catch (e) {
