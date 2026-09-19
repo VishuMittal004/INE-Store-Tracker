@@ -31,7 +31,7 @@ router.post('/trigger', authenticateCron, async (req, res) => {
                 try {
                     await runScrapeJob(p.id);
                     // Add a 1 minute (60s) delay between products to prevent the mock store's anti-bot from rate-limiting us!
-                    await new Promise(resolve => setTimeout(resolve, 60000));
+                    await new Promise(resolve => setTimeout(resolve, 180000));
                 } catch (err) {
                     console.error("Error scraping product:", err);
                 }
