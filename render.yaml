@@ -21,16 +21,4 @@ services:
       - key: ALERT_EMAIL
         sync: false
 
-  - type: cron
-    name: ine-tracker-scraper-cron
-    env: node
-    plan: free
-    region: oregon
-    schedule: "*/30 * * * *" # Every 30 minutes
-    rootDir: backend
-    buildCommand: "echo 'Cron job instance'"
-    # Triggers the scraper endpoint on the backend web service
-    startCommand: 'curl -X POST https://ine-tracker-backend.onrender.com/api/cron/process -H "Authorization: Bearer $CRON_SECRET"'
-    envVars:
-      - key: CRON_SECRET
-        sync: false
+
