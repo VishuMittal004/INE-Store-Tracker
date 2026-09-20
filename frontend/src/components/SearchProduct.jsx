@@ -37,7 +37,7 @@ export default function SearchProduct({ onTrackProduct }) {
             <h2>Find a Product to Track</h2>
             
             <form onSubmit={handleSearch} className="search-form">
-                <div className="input-wrapper">
+                <div className="search-input-wrapper">
                     <input 
                         type="text" 
                         value={query}
@@ -54,17 +54,17 @@ export default function SearchProduct({ onTrackProduct }) {
                         disabled={isLoading}
                     />
                     {query && (
-                        <button
-                            type="button"
-                            className="clear-icon"
+                        <button 
+                            type="button" 
+                            className="clear-search-btn"
                             onClick={() => {
                                 setQuery('');
                                 setResults([]);
                                 setError(null);
                             }}
-                            disabled={isLoading}
+                            title="Clear search"
                         >
-                            <X size={18} />
+                            <X size={16} />
                         </button>
                     )}
                 </div>
