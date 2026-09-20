@@ -24,7 +24,7 @@ async function scrapeProduct(page, url) {
 
         // 3. Hover over the PRODUCT IMAGE (Anti-bot requirement)
         try {
-            const image = page.locator('.product-image-container, img.w-full.h-full.object-cover');
+            const image = page.locator('.detail-media');
             if (await image.first().isVisible()) {
                 await image.first().hover();
                 await page.waitForTimeout(2000); // 2 second delay for anti-bot
