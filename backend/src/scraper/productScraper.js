@@ -28,16 +28,15 @@ async function scrapeProduct(page, url) {
         // 2. Dismiss the cookie overlay before any mouse interaction.
         try {
             const cookieOverlay = page.locator('.cookie-overlay');
+            await cookieOverlay.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
 
             if (await cookieOverlay.isVisible().catch(() => false)) {
                 console.log('Cookie overlay detected.');
 
-                const acceptButton = cookieOverlay.getByRole('button', {
-                    name: /accept/i
-                });
+                const acceptButton = page.locator('.cookie-overlay button').filter({ hasText: /^Accept$/i }).first();
 
                 if (await acceptButton.isVisible().catch(() => false)) {
-                    await acceptButton.click();
+                    await acceptButton.click({ force: true });
                     console.log('Cookie consent accepted.');
                 }
 
@@ -46,10 +45,14 @@ async function scrapeProduct(page, url) {
                     timeout: 5000
                 }).catch(() => {});
 
-                console.log(
-                    'Cookie overlay visible after dismissal:',
-                    await cookieOverlay.isVisible().catch(() => false)
-                );
+                const isStillVisible = await cookieOverlay.isVisible().catch(() => false);
+                console.log('Cookie overlay visible after dismissal:', isStillVisible);
+                
+                if (isStillVisible) {
+                    console.log('===== COOKIE OVERLAY HTML =====');
+                    console.log(await cookieOverlay.evaluate(el => el.outerHTML).catch(() => ''));
+                    console.log('===============================');
+                }
             }
         } catch (e) {
             console.log(`Cookie handling warning: ${e.message}`);
@@ -64,14 +67,25 @@ async function scrapeProduct(page, url) {
         }
 
         if (await priceBlock.isVisible()) {
-            console.log('Hovering over price block...');
-
-            await priceBlock.hover({
-                position: { x: 20, y: 20 },
-                timeout: 10000
-            });
-
-            await page.waitForTimeout(1000);
+            console.log('Hovering over price block with trajectory...');
+            
+            const box = await priceBlock.boundingBox();
+            if (box) {
+                // Move mouse across the price block (required by mock store JS)
+                const y = box.y + box.height / 2;
+                await page.mouse.move(box.x + 10, y, { steps: 5 });
+                await page.waitForTimeout(100);
+                await page.mouse.move(box.x + box.width / 4, y, { steps: 5 });
+                await page.waitForTimeout(100);
+                await page.mouse.move(box.x + box.width / 2, y, { steps: 5 });
+                await page.waitForTimeout(100);
+                await page.mouse.move(box.x + (box.width * 3) / 4, y, { steps: 5 });
+                await page.waitForTimeout(100);
+                await page.mouse.move(box.x + box.width - 10, y, { steps: 5 });
+                
+                // CRITICAL: Dwell on the price block for 3 seconds to trigger the state change
+                await page.waitForTimeout(3000);
+            }
 
             console.log(
                 'Price block class after hover:',
@@ -123,12 +137,20 @@ async function scrapeProduct(page, url) {
 
             console.log('Reveal price button is enabled.');
 
-            await revealButton.click();
-
-            await page.waitForTimeout(1000);
-
+            const btnBox = await revealButton.boundingBox();
+            if (btnBox) {
+                await page.mouse.click(btnBox.x + btnBox.width / 2, btnBox.y + btnBox.height / 2);
+            }
+            console.log('Clicked reveal button with pure mouse.');
         } catch (e) {
-            console.log(`Reveal button did not become enabled: ${e.message}`);
+            console.log(`Reveal button interaction failed: ${e.message}`);
+        }
+
+        try {
+            // Simply wait 3 seconds for the price to load
+            await page.waitForTimeout(3000);
+        } catch (e) {
+            console.log(`Failed waiting for price to load: ${e.message}`);
         }
 
         // 5. Extract ONLY from the price-block area!
@@ -146,25 +168,26 @@ async function scrapeProduct(page, url) {
         const cleanPriceArea = priceArea.replace(/\u200b/g, ''); 
         
         // Normalize different number formats before converting to a number.
-        const rawMatches = cleanPriceArea.match(/₹\s*([\d., \xA0]+)/g);
+        // Include apostrophes (') as they are sometimes used as thousands separators.
+        const rawMatches = cleanPriceArea.match(/₹\s*([\d., \xA0']+)/g);
         let price = null;
         
         if (rawMatches && rawMatches.length > 0) {
             const numbers = rawMatches.map(m => {
                 let s = m.replace(/₹\s*/, '').trim();
                 
-                // Handle randomized locale formats (e.g., 18.781,00 vs 19,296 vs 19 100)
+                // Handle randomized locale formats (e.g., 18.781,00 vs 19,296 vs 19 100 vs 19'100)
                 const decimalMatch = s.match(/[.,](\d{2})$/);
                 if (decimalMatch) {
-                    s = s.slice(0, -3).replace(/[., \xA0]/g, '') + '.' + decimalMatch[1];
+                    s = s.slice(0, -3).replace(/[., \xA0']/g, '') + '.' + decimalMatch[1];
                 } else {
-                    s = s.replace(/[., \xA0]/g, '');
+                    s = s.replace(/[., \xA0']/g, '');
                 }
                 return parseFloat(s);
             }); 
             
-            // Validation: Ensure the click succeeded by checking if multiple prices loaded
-            if (numbers.length >= 2) {
+            // Validation: Ensure the click succeeded by checking if at least one price loaded
+            if (numbers.length >= 1) {
                 price = Math.min(...numbers); // Grab the absolute lowest price
             } else {
                 console.log(`Validation failed: Found ${numbers.length} price(s). Mock store click ignored.`);
