@@ -175,7 +175,7 @@ function App() {
                       {p.name}
                     </div>
                     <div className="product-subname sans">Tracked Item</div>
-                    <div className="product-sku sans">SKU {p.external_product_id}</div>
+                    <div className="product-sku sans">SKU-INE-{String(p.external_product_id).padStart(8, '0')}</div>
 
                     <div className="tracked-price-preview" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                       <span className="price-tag serif">₹{p.current_price?.toLocaleString() || 'N/A'}</span>
