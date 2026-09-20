@@ -27,7 +27,7 @@ router.post('/trigger', authenticateCron, async (req, res) => {
 
         // Find products that need scraping based on their frequency
         // For simplicity right now, let's just trigger scraping for all tracked products
-        const { data: products, error } = await supabase.from('tracked_products').select('id');
+        const { data: products, error } = await supabase.from('tracked_products').select('id').limit(1);
 
         if (error) throw error;
         
