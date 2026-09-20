@@ -209,7 +209,7 @@
    ========================================================================== */
 @media (max-width: 768px) {
   .app-container {
-    padding: 0 1rem;
+    padding: 0 1rem 4rem 1rem;
   }
 
   .app-header-container {
