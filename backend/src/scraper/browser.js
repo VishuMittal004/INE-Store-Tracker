@@ -5,7 +5,13 @@ async function launchBrowser(isHeaded = false) {
     // We launch headless by defualt, but allow headed for the demo recording in M9
     return await chromium.launch({
         headless: !isHeaded,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--single-process'
+        ]
     });
 }
 
