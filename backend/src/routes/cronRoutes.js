@@ -11,7 +11,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 function authenticateCron(req, res, next) {
     const authHeader = req.headers['authorization'];
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return res.status(401).json({ error: 'Unauthorized: Invalid cron secret' });
+        return res.status(401).send('UNAUTHORIZED');
     }
     next();
 }
@@ -21,9 +21,9 @@ router.post('/trigger', authenticateCron, async (req, res) => {
         // Find products that need scraping based on their frequency
         // For simplicity right now, let's just trigger scraping for all tracked products
         const { data: products, error } = await supabase.from('tracked_products').select('id');
-        
+
         if (error) throw error;
-        
+
         // Start jobs sequentially in the background so we don't run out of RAM on the free tier!
         // (Free tier services require quick HTTP responses, so we don't await this block)
         (async () => {
@@ -37,10 +37,10 @@ router.post('/trigger', authenticateCron, async (req, res) => {
                 }
             }
         })();
-        
-        res.json({ message: `Triggered scrape jobs for ${products.length} products.` });
+
+        res.status(200).send('OK');
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        res.status(500).send('ERROR');
     }
 });
 
