@@ -60,10 +60,10 @@ async function scrapeProduct(page, url) {
             await page.waitForFunction(() => {
                 const btn = document.querySelector('button[aria-label="Reveal price"]');
                 return btn && !btn.disabled;
-            }, { timeout: 4000 });
+            }, { timeout: 15000 });
             
             await page.locator('button[aria-label="Reveal price"]').click({ force: true, timeout: 3000 });
-            await page.waitForTimeout(3000); 
+            await page.waitForTimeout(2000); 
         } catch (e) {
             console.log(`Reveal interaction timed out. Continuing with extraction...`);
         }
@@ -71,6 +71,14 @@ async function scrapeProduct(page, url) {
         // 5. Extract ONLY from the price-block area!
         const priceArea = await page.locator('.price-block').innerText().catch(() => '');
         
+        console.log('===== PRICE DEBUG =====');
+        console.log('Price block visible:', await page.locator('.price-block').isVisible().catch(() => false));
+        console.log('Price block text:', JSON.stringify(priceArea));
+        console.log('Reveal button count:', await page.locator('button[aria-label="Reveal price"]').count());
+        console.log('Reveal button visible:', await page.locator('button[aria-label="Reveal price"]').isVisible().catch(() => false));
+        console.log('Reveal button disabled:', await page.locator('button[aria-label="Reveal price"]').isDisabled().catch(() => false));
+        console.log('=======================');
+
         // Remove zero-width characters that may appear inside the displayed price.
         const cleanPriceArea = priceArea.replace(/\u200b/g, ''); 
         
