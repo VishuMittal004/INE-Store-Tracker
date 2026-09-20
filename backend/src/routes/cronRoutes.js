@@ -16,25 +16,40 @@ function authenticateCron(req, res, next) {
     next();
 }
 
+let isScrapingRunning = false;
+
 router.post('/trigger', authenticateCron, async (req, res) => {
     try {
+        if (isScrapingRunning) {
+            console.log("Cron triggered, but a scrape job is already running. Ignoring.");
+            return res.status(409).send('JOB_RUNNING');
+        }
+
         // Find products that need scraping based on their frequency
         // For simplicity right now, let's just trigger scraping for all tracked products
         const { data: products, error } = await supabase.from('tracked_products').select('id');
 
         if (error) throw error;
+        
+        console.log("SCRAPER VERSION: 2026-09-20-FIX-1");
+        
+        isScrapingRunning = true;
 
         // Start jobs sequentially in the background so we don't run out of RAM on the free tier!
         // (Free tier services require quick HTTP responses, so we don't await this block)
         (async () => {
-            for (const p of products) {
-                try {
-                    await runScrapeJob(p.id);
-                    // Add a 1 minute (60s) delay between products to prevent the mock store's anti-bot from rate-limiting us!
-                    await new Promise(resolve => setTimeout(resolve, 180000));
-                } catch (err) {
-                    console.error("Error scraping product:", err);
+            try {
+                for (const p of products) {
+                    try {
+                        await runScrapeJob(p.id);
+                        // Keep a 3-minute gap between products to avoid sending requests too quickly.
+                        await new Promise(resolve => setTimeout(resolve, 180000));
+                    } catch (err) {
+                        console.error("Error scraping product:", err);
+                    }
                 }
+            } finally {
+                isScrapingRunning = false;
             }
         })();
 
