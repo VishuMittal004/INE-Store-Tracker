@@ -5,7 +5,20 @@ async function scrapeProduct(page, url) {
         console.log(`Loading page...`);
         // Set a desktop viewport! In headless mode on Linux, it defaults to a small size which can trigger the mock store's mobile CSS and hide the image!
         await page.setViewportSize({ width: 1920, height: 1080 });
-        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        
+        const response = await page.goto(url, { 
+            waitUntil: 'domcontentloaded',
+            timeout: 60000 
+        });
+        
+        const httpCode = response ? response.status() : null;
+        const retryAfter = response ? response.headers()['retry-after'] || null : null;
+        
+        console.log(`Page HTTP status: ${httpCode}`);
+        if (retryAfter) {
+            console.log(`Server Retry-After: ${retryAfter}`);
+        }
+
         await page.waitForTimeout(2000); // hydrate
 
         // 1. Move mouse far away initially to guarantee onMouseEnter triggers when we move back
@@ -31,11 +44,10 @@ async function scrapeProduct(page, url) {
             }
         } catch (e) {}
 
-        // 4. Hover over the price block with a large "human" wiggle to guarantee React catches it
+        // 4. Move across the price area so hover-based UI interactions can trigger
         try {
             const box = await page.locator('.price-block').boundingBox();
             if (box) {
-                // Wiggle across the box
                 for (let i = 0; i < 15; i++) {
                     await page.mouse.move(box.x + 10 + i*10, box.y + 10 + i*10);
                     await page.waitForTimeout(50);
@@ -53,16 +65,16 @@ async function scrapeProduct(page, url) {
             await page.locator('button[aria-label="Reveal price"]').click({ force: true, timeout: 3000 });
             await page.waitForTimeout(3000); 
         } catch (e) {
-            console.log(`Reveal interaction timed out, might be mock store anti-bot.`);
+            console.log(`Reveal interaction timed out. Continuing with extraction...`);
         }
 
         // 5. Extract ONLY from the price-block area!
         const priceArea = await page.locator('.price-block').innerText().catch(() => '');
         
-        // DEFEAT ANTI-BOT 1: Remove zero-width spaces (\u200b) injected between digits
+        // Remove zero-width characters that may appear inside the displayed price.
         const cleanPriceArea = priceArea.replace(/\u200b/g, ''); 
         
-        // DEFEAT ANTI-BOT 2: Only match numbers directly attached to the Rupee symbol, now allowing spaces
+        // Normalize different number formats before converting to a number.
         const rawMatches = cleanPriceArea.match(/₹\s*([\d., \xA0]+)/g);
         let price = null;
         
@@ -70,7 +82,7 @@ async function scrapeProduct(page, url) {
             const numbers = rawMatches.map(m => {
                 let s = m.replace(/₹\s*/, '').trim();
                 
-                // DEFEAT ANTI-BOT 3: Handle randomized locale formats (e.g., 18.781,00 vs 19,296 vs 19 100)
+                // Handle randomized locale formats (e.g., 18.781,00 vs 19,296 vs 19 100)
                 const decimalMatch = s.match(/[.,](\d{2})$/);
                 if (decimalMatch) {
                     s = s.slice(0, -3).replace(/[., \xA0]/g, '') + '.' + decimalMatch[1];
@@ -93,9 +105,11 @@ async function scrapeProduct(page, url) {
         const stock = !bodyText.toLowerCase().includes('out of stock');
 
         // If price is NOT null, we succeeded!
-        if (price !== null) {
+        if (price !== null && Number.isFinite(price) && price > 0) {
             return {
                 success: true,
+                httpCode,
+                retryAfter,
                 data: {
                     name: nameText ? nameText.trim() : 'Unknown Product',
                     price: price,
@@ -104,16 +118,24 @@ async function scrapeProduct(page, url) {
             };
         }
         
-        // If price is null, we failed the anti-bot check
+        // Extraction failed
         return {
             success: false,
-            error: 'Anti-bot blocked reveal or hover failed',
-            data: { name: nameText ? nameText.trim() : 'Unknown Product', price: null, stock: false }
+            httpCode,
+            retryAfter,
+            error: 'Price was not extracted as a valid positive number',
+            data: { 
+                name: nameText ? nameText.trim() : 'Unknown Product', 
+                price: null, 
+                stock: null 
+            }
         };
 
     } catch (e) {
         return {
             success: false,
+            httpCode: null,
+            retryAfter: null,
             error: e.message,
             data: null
         };
