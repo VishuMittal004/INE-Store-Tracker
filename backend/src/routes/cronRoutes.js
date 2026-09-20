@@ -27,7 +27,7 @@ router.post('/trigger', authenticateCron, async (req, res) => {
 
         // Find products that need scraping based on their frequency
         // For simplicity right now, let's just trigger scraping for all tracked products
-        const { data: products, error } = await supabase.from('tracked_products').select('id').limit(1);
+        const { data: products, error } = await supabase.from('tracked_products').select('id');
 
         if (error) throw error;
         
@@ -42,8 +42,8 @@ router.post('/trigger', authenticateCron, async (req, res) => {
                 for (const p of products) {
                     try {
                         await runScrapeJob(p.id);
-                        // Keep a 3-minute gap between products to avoid sending requests too quickly.
-                        await new Promise(resolve => setTimeout(resolve, 180000));
+                        // Keep a 1-minute gap between products to avoid sending requests too quickly.
+                        await new Promise(resolve => setTimeout(resolve, 60000));
                     } catch (err) {
                         console.error("Error scraping product:", err);
                     }
