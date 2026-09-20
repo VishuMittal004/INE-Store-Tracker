@@ -6,6 +6,17 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+let lastScrapeRequest = 0;
+
+async function waitBeforeRequest() {
+    const minimumGap = 30000;
+    const elapsed = Date.now() - lastScrapeRequest;
+    if (elapsed < minimumGap) {
+        await new Promise(resolve => setTimeout(resolve, minimumGap - elapsed));
+    }
+    lastScrapeRequest = Date.now();
+}
+
 async function runScrapeJob(productId) {
     // 1. Fetch the product URL
     const { data: product, error: fetchError } = await supabase
@@ -24,7 +35,7 @@ async function runScrapeJob(productId) {
     // We launch one browser for the entire sequence
     const browser = await launchBrowser();
     let attempt = 1;
-    const maxAttempts = 5;
+    const maxAttempts = 4;
     let finalSuccess = false;
 
     try {
@@ -32,18 +43,29 @@ async function runScrapeJob(productId) {
             console.log(`[Job Attempt ${attempt}/${maxAttempts}] Scraping ${product.product_url}`);
             
             const page = await browser.newPage();
+            
+            // Wait for global cooldown to protect the mock store from rate spikes
+            await waitBeforeRequest();
+            
             const result = await scrapeProduct(page, product.product_url);
             await page.close();
 
             // Record the exact outcome in the database
-            const outcomeStatus = result.success ? 'success' : (attempt < maxAttempts ? 'retried' : 'failed');
+            let outcomeStatus = 'failed';
+            if (result.success) {
+                outcomeStatus = 'success';
+            } else if (result.httpCode === 429) {
+                outcomeStatus = 'rate_limited';
+            } else if (attempt < maxAttempts) {
+                outcomeStatus = 'retried';
+            }
             
             const logEntry = {
                 tracked_product_id: product.id,
                 status: outcomeStatus,
                 attempt_number: attempt,
                 message: result.error || 'Extracted successfully',
-                http_code: 200
+                http_code: result.httpCode || null
             };
             
             // Note: If you added price_recorded to schema.sql, you can uncomment this
@@ -128,10 +150,15 @@ async function runScrapeJob(productId) {
                 finalSuccess = true;
                 break; // Break the retry loop
             } else if (attempt < maxAttempts) {
-                // If we failed but have retries left, wait 15 seconds before trying again!
-                // This prevents us from instantly hammering the exact same page and getting permanently blocked by the anti-bot.
-                console.log(`Waiting 30 seconds before attempt ${attempt + 1}...`);
-                await new Promise(resolve => setTimeout(resolve, 30000));
+                let delayMs = Math.min(30000 * Math.pow(2, attempt - 1), 240000);
+                if (result.httpCode === 429 && result.retryAfter) {
+                    const parsedRetry = parseInt(result.retryAfter, 10);
+                    if (!isNaN(parsedRetry)) {
+                        delayMs = parsedRetry * 1000;
+                    }
+                }
+                console.log(`Waiting ${delayMs/1000} seconds before attempt ${attempt + 1}...`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
             }
             
             attempt++;
