@@ -35,37 +35,69 @@ async function scrapeProduct(page, url) {
             await page.waitForTimeout(1000);
         } catch(e) {}
 
-        // 3. Hover over the PRODUCT IMAGE (Anti-bot requirement)
-        try {
-            const image = page.locator('.detail-media');
-            if (await image.first().isVisible()) {
-                await image.first().hover();
-                await page.waitForTimeout(2000); // 2 second delay for anti-bot
-            }
-        } catch (e) {}
+        // 3. Move to the product price area and trigger the hover-based UI.
+        const priceBlock = page.locator('.price-block');
 
-        // 4. Move across the price area so hover-based UI interactions can trigger
-        try {
-            const box = await page.locator('.price-block').boundingBox();
-            if (box) {
-                for (let i = 0; i < 15; i++) {
-                    await page.mouse.move(box.x + 10 + i*10, box.y + 10 + i*10);
-                    await page.waitForTimeout(50);
-                }
-            }
-        } catch (e) {}
+        if (await priceBlock.isVisible()) {
+            console.log('Hovering over price block...');
+
+            await priceBlock.hover({
+                position: { x: 20, y: 20 }
+            });
+
+            await page.waitForTimeout(1000);
+
+            console.log(
+                'Reveal button disabled after hover:',
+                await page.locator('button[aria-label="Reveal price"]').isDisabled().catch(() => true)
+            );
+            
+            console.log('After hover price block text:');
+            console.log(
+                JSON.stringify(
+                    await priceBlock.innerText().catch(() => '')
+                )
+            );
+        }
+        
+        const priceBlockHTML = await priceBlock.evaluate(el => el.outerHTML).catch(() => 'PRICE BLOCK NOT FOUND');
+        console.log('===== PRICE BLOCK HTML =====');
+        console.log(priceBlockHTML);
+        console.log('============================');
+
+        const buttonHTML = await page
+            .locator('button[aria-label="Reveal price"]')
+            .evaluate(el => el.outerHTML)
+            .catch(() => 'BUTTON NOT FOUND');
+
+        console.log('===== REVEAL BUTTON HTML =====');
+        console.log(buttonHTML);
+        console.log('==============================');
 
         // 4. Wait for the Reveal Price button to enable and click it
+        const revealButton = page.locator('button[aria-label="Reveal price"]');
+
         try {
+            await revealButton.waitFor({
+                state: 'visible',
+                timeout: 10000
+            });
+
             await page.waitForFunction(() => {
-                const btn = document.querySelector('button[aria-label="Reveal price"]');
+                const btn = document.querySelector(
+                    'button[aria-label="Reveal price"]'
+                );
                 return btn && !btn.disabled;
             }, { timeout: 15000 });
-            
-            await page.locator('button[aria-label="Reveal price"]').click({ force: true, timeout: 3000 });
-            await page.waitForTimeout(2000); 
+
+            console.log('Reveal price button is enabled.');
+
+            await revealButton.click();
+
+            await page.waitForTimeout(1000);
+
         } catch (e) {
-            console.log(`Reveal interaction timed out. Continuing with extraction...`);
+            console.log(`Reveal button did not become enabled: ${e.message}`);
         }
 
         // 5. Extract ONLY from the price-block area!
