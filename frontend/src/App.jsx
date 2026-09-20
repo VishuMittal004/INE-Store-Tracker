@@ -107,7 +107,12 @@ function App() {
                   {alerts.length > 0 && (
                     <button 
                       onClick={() => {
-                        alerts.forEach(a => handleAlertClick(a.id));
+                        // 1. Capture the IDs we need to clear
+                        const idsToClear = alerts.map(a => a.id);
+                        // 2. Optimistic UI update: instantly clear the panel!
+                        setAlerts([]);
+                        // 3. Process the backend requests silently in the background
+                        idsToClear.forEach(id => markAlertRead(id).catch(console.error));
                       }} 
                       style={{ background: 'none', border: 'none', color: '#999', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
                     >
