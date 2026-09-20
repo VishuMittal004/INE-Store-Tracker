@@ -49,6 +49,11 @@ async function runScrapeJob(productId) {
             
             const result = await scrapeProduct(page, product.product_url);
             await page.close();
+            
+            if (!result.success) {
+                console.log(`SCRAPE FAILED: ${result.error}`);
+                console.log(`HTTP STATUS: ${result.httpCode}`);
+            }
 
             // Record the exact outcome in the database
             let outcomeStatus = 'failed';
