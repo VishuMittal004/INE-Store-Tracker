@@ -147,8 +147,11 @@ async function scrapeProduct(page, url) {
         }
 
         try {
-            // Simply wait 3 seconds for the price to load
-            await page.waitForTimeout(3000);
+            // Wait dynamically for the price to load on slower servers (like Render)
+            await page.waitForFunction(() => {
+                const el = document.querySelector('.price-block');
+                return el && el.innerText && el.innerText.includes('₹');
+            }, { timeout: 15000 });
         } catch (e) {
             console.log(`Failed waiting for price to load: ${e.message}`);
         }
