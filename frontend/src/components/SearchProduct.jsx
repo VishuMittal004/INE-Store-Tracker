@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { searchProducts } from '../services/api';
 import './SearchProduct.css';
 
@@ -36,21 +37,37 @@ export default function SearchProduct({ onTrackProduct }) {
             <h2>Find a Product to Track</h2>
             
             <form onSubmit={handleSearch} className="search-form">
-                <input 
-                    type="text" 
-                    value={query}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        setQuery(val);
-                        if (!val.trim()) {
-                            setResults([]);
-                            setError(null);
-                        }
-                    }}
-                    placeholder="E.g. Ironwood Kettle..."
-                    className="search-input"
-                    disabled={isLoading}
-                />
+                <div className="input-wrapper">
+                    <input 
+                        type="text" 
+                        value={query}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setQuery(val);
+                            if (!val.trim()) {
+                                setResults([]);
+                                setError(null);
+                            }
+                        }}
+                        placeholder="E.g. Ironwood Kettle..."
+                        className="search-input"
+                        disabled={isLoading}
+                    />
+                    {query && (
+                        <button
+                            type="button"
+                            className="clear-icon"
+                            onClick={() => {
+                                setQuery('');
+                                setResults([]);
+                                setError(null);
+                            }}
+                            disabled={isLoading}
+                        >
+                            <X size={18} />
+                        </button>
+                    )}
+                </div>
                 <button type="submit" className="btn primary-btn" disabled={isLoading || !query.trim()}>
                     {isLoading ? 'Searching...' : 'Search'}
                 </button>
