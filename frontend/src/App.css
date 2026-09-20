@@ -203,3 +203,50 @@
 .alert-item small {
   color: var(--text-muted) !important;
 }
+
+/* ==========================================================================
+   MOBILE RESPONSIVENESS (Applies only to screens < 768px. PC is untouched!)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 0 1rem;
+  }
+
+  .app-header-container {
+    padding: 0 1rem;
+  }
+
+  .app-header {
+    flex-direction: row;
+    align-items: center;
+    padding: 1rem 0;
+  }
+
+  .logo-section h1 {
+    font-size: 1.2rem;
+  }
+
+  .page-title-section h2 {
+    font-size: 1.8rem;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr; /* Stack items vertically */
+    border-left: none; /* Remove left border since it takes full width */
+    border-right: none;
+  }
+
+  .tracked-item {
+    border-left: 1px solid var(--border-color); /* Add borders for stacked layout */
+    border-right: 1px solid var(--border-color);
+    margin-bottom: 1rem;
+  }
+
+  /* Adjust notifications dropdown for mobile */
+  .alerts-dropdown {
+    width: 300px !important;
+    max-width: calc(100vw - 32px) !important;
+    right: 0 !important; 
+  }
+}
+
