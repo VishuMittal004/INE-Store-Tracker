@@ -25,27 +25,58 @@ async function scrapeProduct(page, url) {
         await page.mouse.move(0, 0);
         await page.waitForTimeout(500);
 
-        // 2. Dismiss cookies reliably using evaluate to bypass any overlay issues
+        // 2. Dismiss the cookie overlay before any mouse interaction.
         try {
-            await page.evaluate(() => {
-                document.querySelectorAll('button').forEach(b => {
-                    if (b.innerText.toUpperCase().includes('ACCEPT')) b.click();
+            const cookieOverlay = page.locator('.cookie-overlay');
+
+            if (await cookieOverlay.isVisible().catch(() => false)) {
+                console.log('Cookie overlay detected.');
+
+                const acceptButton = cookieOverlay.getByRole('button', {
+                    name: /accept/i
                 });
-            });
-            await page.waitForTimeout(1000);
-        } catch(e) {}
+
+                if (await acceptButton.isVisible().catch(() => false)) {
+                    await acceptButton.click();
+                    console.log('Cookie consent accepted.');
+                }
+
+                await cookieOverlay.waitFor({
+                    state: 'hidden',
+                    timeout: 5000
+                }).catch(() => {});
+
+                console.log(
+                    'Cookie overlay visible after dismissal:',
+                    await cookieOverlay.isVisible().catch(() => false)
+                );
+            }
+        } catch (e) {
+            console.log(`Cookie handling warning: ${e.message}`);
+        }
 
         // 3. Move to the product price area and trigger the hover-based UI.
         const priceBlock = page.locator('.price-block');
+
+        const cookieOverlay = page.locator('.cookie-overlay');
+        if (await cookieOverlay.isVisible().catch(() => false)) {
+            throw new Error('Cookie overlay is still visible; cannot interact with price block.');
+        }
 
         if (await priceBlock.isVisible()) {
             console.log('Hovering over price block...');
 
             await priceBlock.hover({
-                position: { x: 20, y: 20 }
+                position: { x: 20, y: 20 },
+                timeout: 10000
             });
 
             await page.waitForTimeout(1000);
+
+            console.log(
+                'Price block class after hover:',
+                await priceBlock.getAttribute('class')
+            );
 
             console.log(
                 'Reveal button disabled after hover:',
