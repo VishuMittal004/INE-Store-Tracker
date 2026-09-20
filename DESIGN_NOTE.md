@@ -55,7 +55,7 @@ Instead of immediately forcing a click, the scraper:
 
 1. locates `.price-block`
 2. obtains its position
-3. moves the Puppeteer mouse toward that position
+3. moves the playwright mouse toward that position
 4. allows the page's hover behaviour to activate
 5. interacts with the reveal control
 
@@ -102,7 +102,7 @@ Condition-based waits make the scraper slightly more complex and require selecto
 
 ### 2.4 One browser instance per scraping job
 
-The service launches one Puppeteer browser and reuses it while processing the tracked products sequentially.
+The service launches one playwright browser and reuses it while processing the tracked products sequentially.
 
 ```text
 runScrapeJob()
@@ -140,7 +140,7 @@ scraperService
 productScraper
       |
       v
-Puppeteer
+playwright
 ```
 
 This separation makes it easier to debug whether a failure came from:
@@ -208,9 +208,9 @@ This makes the database the persistent source of truth for the latest known pric
 
 ## 5. Technology Trade-offs
 
-### Puppeteer instead of a simple HTTP client
+### playwright instead of a simple HTTP client
 
-**Chosen:** Puppeteer / Chromium
+**Chosen:** playwright / Chromium
 
 **Reason:** The page requires browser interaction, including hover-driven behaviour and dynamic DOM changes.
 
