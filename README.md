@@ -17,7 +17,7 @@ This repository documentation is structured to cover the assignment requirements
 
 The application has three main parts:
 
-1. **Scraper Engine — Puppeteer / Node.js**  
+1. **Scraper Engine — playwright / Node.js**  
    Opens product pages in Chromium, handles the cookie overlay, performs the required hover interaction, reveals the price, waits for the price to appear in the DOM, and parses the numeric value.
 
 2. **Backend API — Express.js / SQLite**  
@@ -47,7 +47,7 @@ SQLite Database     node-cron
                  Scrape Job
                        |
                        v
-               Puppeteer / Chrome
+               playwright / Chrome
                        |
                        v
                 INE Demo Store
@@ -60,10 +60,10 @@ SQLite Database     node-cron
 Install the following before running the project:
 
 - Node.js and npm
-- A working Chromium/Chrome runtime supported by Puppeteer
+- A working Chromium/Chrome runtime supported by playwright
 - Git, if cloning the repository
 
-The backend uses Puppeteer to launch a browser, so the environment running the backend must be able to start Chromium.
+The backend uses playwright to launch a browser, so the environment running the backend must be able to start Chromium.
 
 ---
 
@@ -215,7 +215,7 @@ runScrapeJob()
 Read all tracked products from SQLite
       |
       v
-Launch one Puppeteer browser
+Launch one playwright browser
       |
       v
 Scrape products sequentially
@@ -387,7 +387,7 @@ Suppose the user searches for **Ironwood Kettle**.
 4. User selects "Track Price"
 5. Product URL and identifying information are stored in SQLite
 6. The cron scheduler runs
-7. Puppeteer opens the product page
+7. playwright opens the product page
 8. Cookie consent is handled
 9. Mouse moves over the price block
 10. Reveal-price interaction is triggered
@@ -405,7 +405,7 @@ Suppose the user searches for **Ironwood Kettle**.
 
 ### Backend
 
-The backend can be deployed on a server platform that supports Node.js and can run Puppeteer/Chromium.
+The backend can be deployed on a server platform that supports Node.js and can run playwright/Chromium.
 
 Because headless Chromium is memory-intensive, the browser is launched with resource-oriented flags such as:
 
@@ -435,7 +435,7 @@ Make sure the API layer points to the production backend URL.
 
 ### Browser fails to launch
 
-Check that the deployment environment can run Puppeteer/Chromium and that the required system resources are available.
+Check that the deployment environment can run playwright/Chromium and that the required system resources are available.
 
 ### Scraper cannot reveal the price
 
@@ -473,7 +473,7 @@ Starting the backend process and starting the scheduler are separate operations 
 
 The application intentionally favours reliability and clear separation of concerns:
 
-- Puppeteer handles browser-level interaction.
+- playwright handles browser-level interaction.
 - `scraperService.js` orchestrates scraping and database updates.
 - Express routes/controllers handle HTTP operations.
 - SQLite provides persistent local storage.
