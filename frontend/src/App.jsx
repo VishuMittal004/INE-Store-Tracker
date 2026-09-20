@@ -101,8 +101,20 @@ function App() {
             </button>
 
             {showDropdown && (
-              <div className="alerts-dropdown" style={{ position: 'absolute', top: '35px', right: '0', width: '320px', padding: '15px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <h3 className="sans" style={{ margin: '0 0 10px 0', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>Notifications</h3>
+              <div className="alerts-dropdown" style={{ position: 'absolute', top: '35px', right: '0', width: '320px', padding: '15px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '5px', maxHeight: '400px', overflowY: 'auto', overscrollBehavior: 'contain' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h3 className="sans" style={{ margin: '0', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>Notifications</h3>
+                  {alerts.length > 0 && (
+                    <button 
+                      onClick={() => {
+                        alerts.forEach(a => handleAlertClick(a.id));
+                      }} 
+                      style={{ background: 'none', border: 'none', color: '#999', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                    >
+                      Dismiss all
+                    </button>
+                  )}
+                </div>
                 {alerts.length === 0 ? (
                   <p style={{ color: '#999', fontSize: '13px', margin: 0 }}>No new alerts.</p>
                 ) : (
