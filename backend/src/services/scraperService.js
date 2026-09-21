@@ -32,8 +32,8 @@ async function runScrapeJob(productId) {
 
     console.log(`Starting scrape job for ${product.name}...`);
     
-    // We launch one browser for the entire sequence
-    const browser = await launchBrowser();
+    // Move browser launch INSIDE the retry loop. If Chromium gets OOM killed (out of memory) 
+    // on Render, trying to reuse a crashed browser instance will hang Node.js forever.
     let attempt = 1;
     const maxAttempts = 4;
     let finalSuccess = false;
@@ -42,13 +42,25 @@ async function runScrapeJob(productId) {
         while (attempt <= maxAttempts) {
             console.log(`[Job Attempt ${attempt}/${maxAttempts}] Scraping ${product.product_url}`);
             
-            const page = await browser.newPage();
+            let browser = null;
+            let page = null;
+            let result = { success: false, error: 'Unknown Error' };
             
-            // Wait for global cooldown to protect the mock store from rate spikes
-            await waitBeforeRequest();
-            
-            const result = await scrapeProduct(page, product.product_url);
-            await page.close();
+            try {
+                browser = await launchBrowser();
+                page = await browser.newPage();
+                
+                // Wait for global cooldown to protect the mock store from rate spikes
+                await waitBeforeRequest();
+                
+                result = await scrapeProduct(page, product.product_url);
+            } catch (browserError) {
+                console.error("Browser or Page crashed during scrape:", browserError);
+                result.error = browserError.message;
+            } finally {
+                if (page) await page.close().catch(() => {});
+                if (browser) await browser.close().catch(() => {});
+            }
             
             if (!result.success) {
                 console.log(`SCRAPE FAILED: ${result.error}`);
@@ -170,8 +182,6 @@ async function runScrapeJob(productId) {
         }
     } catch (e) {
         console.error("Job crashed:", e);
-    } finally {
-        await browser.close();
     }
     
     if (finalSuccess) {
