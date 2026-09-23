@@ -1,0 +1,29 @@
+name: Scraper Cron Job
+
+on:
+  schedule:
+    # Runs every 2 hours
+    - cron: '0 */2 * * *'
+  # Allows you to trigger this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  trigger-scraper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Scraper API
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          echo "Triggering scraper at $BACKEND_URL/api/cron/trigger..."
+          
+          # We use --fail-with-body to show errors if it fails, but we don't care if the response is large
+          # We set max-time to 300 seconds just in case Render takes a minute to cold boot
+          curl -X POST "$BACKEND_URL/api/cron/trigger" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            --max-time 300 \
+            --fail-with-body
+          
+          echo -e "\nTrigger request completed."
