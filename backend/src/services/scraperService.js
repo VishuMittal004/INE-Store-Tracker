@@ -32,22 +32,22 @@ async function runScrapeJob(productId) {
 
     console.log(`Starting scrape job for ${product.name}...`);
     
-    // Move browser launch INSIDE the retry loop. If Chromium gets OOM killed (out of memory) 
-    // on Render, trying to reuse a crashed browser instance will hang Node.js forever.
     let attempt = 1;
     const maxAttempts = 4;
     let finalSuccess = false;
+    
+    let browser = null;
 
     try {
+        browser = await launchBrowser();
+        
         while (attempt <= maxAttempts) {
             console.log(`[Job Attempt ${attempt}/${maxAttempts}] Scraping ${product.product_url}`);
             
-            let browser = null;
             let page = null;
             let result = { success: false, error: 'Unknown Error' };
             
             try {
-                browser = await launchBrowser();
                 page = await browser.newPage();
                 
                 // Wait for global cooldown to protect the mock store from rate spikes
@@ -55,11 +55,10 @@ async function runScrapeJob(productId) {
                 
                 result = await scrapeProduct(page, product.product_url);
             } catch (browserError) {
-                console.error("Browser or Page crashed during scrape:", browserError);
+                console.error("Page crashed during scrape:", browserError);
                 result.error = browserError.message;
             } finally {
                 if (page) await page.close().catch(() => {});
-                if (browser) await browser.close().catch(() => {});
             }
             
             if (!result.success) {
@@ -182,6 +181,8 @@ async function runScrapeJob(productId) {
         }
     } catch (e) {
         console.error("Job crashed:", e);
+    } finally {
+        if (browser) await browser.close().catch(() => {});
     }
     
     if (finalSuccess) {
