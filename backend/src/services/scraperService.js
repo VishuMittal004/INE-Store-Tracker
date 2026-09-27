@@ -33,7 +33,7 @@ async function runScrapeJob(productId) {
     console.log(`Starting scrape job for ${product.name}...`);
     
     let attempt = 1;
-    const maxAttempts = 4;
+    const maxAttempts = 2; // Reduced from 4 to fail faster if the site is broken
     let finalSuccess = false;
     
     let browser = null;
@@ -166,7 +166,8 @@ async function runScrapeJob(productId) {
                 finalSuccess = true;
                 break; // Break the retry loop
             } else if (attempt < maxAttempts) {
-                let delayMs = Math.min(30000 * Math.pow(2, attempt - 1), 240000);
+                // Reduced exponential backoff: wait 15s instead of 30s to fail gracefully without spamming logs
+                let delayMs = Math.min(15000 * Math.pow(2, attempt - 1), 60000);
                 if (result.httpCode === 429 && result.retryAfter) {
                     const parsedRetry = parseInt(result.retryAfter, 10);
                     if (!isNaN(parsedRetry)) {
