@@ -43,46 +43,34 @@ router.post('/trigger', authenticateCron, async (req, res) => {
             process.exit(1);
         }, 55 * 60 * 1000);
 
-        // --- THE FIX ---
-        // Render's free tier violently throttles CPU to near zero if a web request finishes.
-        // If we launch Playwright in the background AFTER returning a response, the server crashes (503).
-        // By keeping the request OPEN and streaming the response, Render gives us 100% CPU.
-        // We only stream tiny text chunks, completely preventing cron-job.org's "Output too large" error!
-        res.setHeader('Content-Type', 'text/plain');
-        res.setHeader('Transfer-Encoding', 'chunked');
-        res.write('Scrape job initialized...\n');
+        // --- THE NEW FIX ---
+        // We immediately return a 200 OK so cron-job.org doesn't time out at 30 seconds.
+        res.status(200).send('Scraping job started in the background.');
 
-        try {
-            await killZombies();
-            
-            for (const p of products) {
-                res.write(`Processing product ${p.id}...\n`);
+        // Run the actual scraping in the background sequentially
+        (async () => {
+            try {
+                await killZombies();
                 
-                try {
-                    await runScrapeJob(p.id);
-                } catch (err) {
-                    console.error("Error scraping product:", err);
-                    res.write(`Error on product ${p.id}\n`);
+                for (const p of products) {
+                    try {
+                        await runScrapeJob(p.id);
+                    } catch (err) {
+                        console.error("Error scraping product:", err);
+                    }
+                    // Small cooldown to prevent rate limits
+                    await new Promise(resolve => setTimeout(resolve, 15000));
                 }
-
-                // 15-second gap is enough to avoid rate limits without dragging out the total execution time
-                await new Promise(resolve => setTimeout(resolve, 15000));
+            } finally {
+                isScrapingRunning = false;
+                clearTimeout(watchdog);
+                await killZombies();
             }
-        } finally {
-            isScrapingRunning = false;
-            clearTimeout(watchdog);
-            await killZombies();
-        }
+        })();
 
-        res.write('Job successfully completed.\n');
-        res.end();
     } catch (e) {
         isScrapingRunning = false;
-        if (!res.headersSent) {
-            res.status(500).send('ERROR');
-        } else {
-            res.end('\nCRITICAL ERROR OCCURRED');
-        }
+        res.status(500).send('ERROR');
     }
 });
 
