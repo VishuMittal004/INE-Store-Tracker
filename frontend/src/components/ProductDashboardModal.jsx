@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronDown, ChevronRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getProductHistory, getProductLogs } from '../services/api';
 import './ProductDashboardModal.css';
@@ -8,6 +8,7 @@ export default function ProductDashboardModal({ product, onClose }) {
   const [history, setHistory] = useState([]);
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedDates, setExpandedDates] = useState({});
 
   useEffect(() => {
     async function loadData() {
@@ -25,6 +26,13 @@ export default function ProductDashboardModal({ product, onClose }) {
 
       setHistory(chartData);
       setLogs(logsData);
+      
+      // By default, expand the most recent date
+      if (logsData.length > 0) {
+        const mostRecentDate = new Date(logsData[0].started_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+        setExpandedDates({ [mostRecentDate]: true });
+      }
+      
       setIsLoading(false);
     }
     
@@ -32,6 +40,17 @@ export default function ProductDashboardModal({ product, onClose }) {
       loadData();
     }
   }, [product]);
+
+  const toggleDate = (date) => {
+    setExpandedDates(prev => ({ ...prev, [date]: !prev[date] }));
+  };
+
+  const groupedLogs = logs.reduce((acc, log) => {
+    const dateStr = new Date(log.started_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    if (!acc[dateStr]) acc[dateStr] = [];
+    acc[dateStr].push(log);
+    return acc;
+  }, {});
 
   if (!product) return null;
 
@@ -70,7 +89,8 @@ export default function ProductDashboardModal({ product, onClose }) {
                         contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #111111', borderRadius: '4px', color: '#111111' }}
                         itemStyle={{ color: '#111111', fontWeight: 'bold' }}
                       />
-                      <Line type="monotone" dataKey="price" stroke="#111111" strokeWidth={3} dot={{ r: 4, fill: '#111111' }} activeDot={{ r: 6 }} />
+                      {/* Reduced strokeWidth and dot radius to make points much smaller and less clustered */}
+                      <Line type="monotone" dataKey="price" stroke="#111111" strokeWidth={2} dot={{ r: 1.5, fill: '#111111' }} activeDot={{ r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
@@ -82,7 +102,7 @@ export default function ProductDashboardModal({ product, onClose }) {
             <section className="dashboard-section">
               <h3>Honest Scrape Logs (Retries & Failures)</h3>
               <div className="logs-table-container">
-                {logs.length > 0 ? (
+                {Object.keys(groupedLogs).length > 0 ? (
                   <table className="logs-table">
                     <thead>
                       <tr>
@@ -92,20 +112,34 @@ export default function ProductDashboardModal({ product, onClose }) {
                         <th>Message</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {logs.map(log => (
-                        <tr key={log.id} className={`log-row log-${log.status}`}>
-                          <td>{new Date(log.started_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
-                          <td>
-                            <span className={`status-badge status-${log.status}`}>
-                              {log.status.toUpperCase()}
-                            </span>
+                    {Object.entries(groupedLogs).map(([dateStr, dateLogs]) => (
+                      <tbody key={dateStr}>
+                        <tr 
+                          className="date-group-header" 
+                          onClick={() => toggleDate(dateStr)}
+                          style={{ cursor: 'pointer', backgroundColor: '#f9f9f9', borderTop: '2px solid #e5e5e5' }}
+                        >
+                          <td colSpan="4" style={{ fontWeight: 'bold', padding: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {expandedDates[dateStr] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                              {dateStr} <span style={{ fontWeight: 'normal', color: '#666', fontSize: '0.9em' }}>({dateLogs.length} logs)</span>
+                            </div>
                           </td>
-                          <td>{log.attempt_number}/5</td>
-                          <td className="log-message">{log.message}</td>
                         </tr>
-                      ))}
-                    </tbody>
+                        {expandedDates[dateStr] && dateLogs.map(log => (
+                          <tr key={log.id} className={`log-row log-${log.status}`}>
+                            <td>{new Date(log.started_at).toLocaleString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
+                            <td>
+                              <span className={`status-badge status-${log.status}`}>
+                                {log.status.toUpperCase()}
+                              </span>
+                            </td>
+                            <td>{log.attempt_number}/5</td>
+                            <td className="log-message">{log.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    ))}
                   </table>
                 ) : (
                   <p className="empty-state">No logs recorded yet.</p>
