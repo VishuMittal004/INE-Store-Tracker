@@ -98,7 +98,7 @@ async function getProductLogs(req, res) {
             .select('*')
             .eq('tracked_product_id', id)
             .order('started_at', { ascending: false }) // most recent first
-            .limit(50); // limit to last 50 for ui performance
+            .limit(1200); // limit increased to show 5-6 days of history
 
         if (error) throw error;
         res.json(data);
